@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Wallet adapter modal — dark theme */
+.wallet-adapter-modal-wrapper {
+  background: #16161f !important;
+}
+
+.wallet-adapter-button {
+  background: rgb(79 70 229) !important;
+  border-radius: 8px !important;
+}
+
+.wallet-adapter-button:hover {
+  background: rgb(99 102 241) !important;
+}
