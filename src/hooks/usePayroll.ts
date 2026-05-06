@@ -1,7 +1,8 @@
-
 import { useState, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { sendPrivateUsdc } from "@/lib/cloak";
+import { sendPrivateUsdc, assertUsdcBalance } from "@/lib/cloak";
+import { totalUsdc } from "@/lib/csv";
+import type { MerkleTree } from "@cloak.dev/sdk";
 import type { PaymentRow, PaymentResult } from "@/types";
 
 interface Progress {
@@ -16,13 +17,25 @@ export function usePayroll() {
   const [results, setResults] = useState<PaymentResult[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [dispatching, setDispatching] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
 
   const dispatch = useCallback(
     async (rows: PaymentRow[]) => {
       if (!wallet.publicKey) return;
 
+      setBalanceError(null);
       setDispatching(true);
       setProgress({ done: 0, total: rows.length });
+
+      // Pre-flight: check USDC balance before touching the chain
+      try {
+        await assertUsdcBalance(connection, wallet.publicKey, totalUsdc(rows));
+      } catch (err) {
+        setBalanceError(err instanceof Error ? err.message : "Balance check failed");
+        setDispatching(false);
+        setProgress(null);
+        return;
+      }
 
       const initialResults: PaymentResult[] = rows.map((r) => ({
         address: r.address,
@@ -32,27 +45,28 @@ export function usePayroll() {
       setResults(initialResults);
 
       const final = [...initialResults];
+      let cachedMerkleTree: MerkleTree | undefined;
 
       for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-
-        // Mark as processing
         final[i] = { ...final[i], status: "processing" };
         setResults([...final]);
 
         try {
-          const { txSignature, viewingKey } = await sendPrivateUsdc(
+          const result = await sendPrivateUsdc(
             connection,
             wallet,
-            row.address,
-            row.amount,
+            rows[i].address,
+            rows[i].amount,
+            cachedMerkleTree,
           );
+
+          cachedMerkleTree = result.merkleTree;
 
           final[i] = {
             ...final[i],
             status: "success",
-            txSignature,
-            viewingKey,
+            txSignature: result.txSignature,
+            viewingKey: result.viewingKey,
           };
         } catch (err) {
           final[i] = {
@@ -60,6 +74,8 @@ export function usePayroll() {
             status: "error",
             error: err instanceof Error ? err.message : "Unknown error",
           };
+          // Don't carry a stale tree past a failed payment
+          cachedMerkleTree = undefined;
         }
 
         setResults([...final]);
@@ -75,7 +91,8 @@ export function usePayroll() {
     setResults([]);
     setProgress(null);
     setDispatching(false);
+    setBalanceError(null);
   }, []);
 
-  return { dispatch, results, progress, dispatching, reset };
+  return { dispatch, results, progress, dispatching, balanceError, reset };
 }
