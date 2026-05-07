@@ -67,8 +67,8 @@ export function totalUsdc(rows: PaymentRow[]): number {
 export function generateSampleCsv(): string {
   return [
     "address,amount",
-    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgHkz,100.00",
-    "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,250.50",
-    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bMW,75.00",
+    "3NKdgjCbVa4fdFaz8S42kP1UELwT1vyZaH3827iJRCtc,100.00",
+    "3NKdgjCbVa4fdFaz8S42kP1UELwT1vyZaH3827iJRCtc,250.50",
+    "3NKdgjCbVa4fdFaz8S42kP1UELwT1vyZaH3827iJRCtc,75.00",
   ].join("\n");
 }

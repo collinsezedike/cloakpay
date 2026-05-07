@@ -1,5 +1,6 @@
 import {
   CLOAK_PROGRAM_ID,
+  DEVNET_MOCK_USDC_MINT,
   createUtxo,
   createZeroUtxo,
   fullWithdraw,
@@ -7,12 +8,12 @@ import {
   getNkFromUtxoPrivateKey,
   transact,
   type MerkleTree,
-} from "@cloak.dev/sdk";
+} from "@cloak.dev/sdk-devnet";
 import { getAssociatedTokenAddressSync, getAccount, TokenAccountNotFoundError } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
 
-export const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+const RELAY_URL = import.meta.env.VITE_CLOAK_RELAY_URL ?? "/cloak-relay";
 
 const USDC_DECIMALS = 6;
 
@@ -30,7 +31,7 @@ export async function assertUsdcBalance(
   owner: PublicKey,
   requiredUsdc: number,
 ): Promise<void> {
-  const ata = getAssociatedTokenAddressSync(USDC_MINT, owner);
+  const ata = getAssociatedTokenAddressSync(DEVNET_MOCK_USDC_MINT, owner);
   try {
     const account = await getAccount(connection, ata);
     const balance = rawToUsdc(account.amount);
@@ -71,7 +72,7 @@ export async function sendPrivateUsdc(
   const rawAmount = usdcToRaw(amount);
   const recipient = new PublicKey(recipientAddress);
   const ownerKeypair = await generateUtxoKeypair();
-  const depositorAta = getAssociatedTokenAddressSync(USDC_MINT, wallet.publicKey);
+  const depositorAta = getAssociatedTokenAddressSync(DEVNET_MOCK_USDC_MINT, wallet.publicKey);
 
   const signTx = wallet.signTransaction as <T extends Transaction | VersionedTransaction>(tx: T) => Promise<T>;
 
@@ -81,11 +82,13 @@ export async function sendPrivateUsdc(
     depositorPublicKey: wallet.publicKey,
     signTransaction: signTx,
     signMessage: wallet.signMessage,
+    relayUrl: RELAY_URL,
+    enforceViewingKeyRegistration: false,
     ...(cachedMerkleTree ? { cachedMerkleTree } : {}),
   };
 
-  const outputUtxo = await createUtxo(rawAmount, ownerKeypair, USDC_MINT);
-  const zeroInput = await createZeroUtxo(USDC_MINT);
+  const outputUtxo = await createUtxo(rawAmount, ownerKeypair, DEVNET_MOCK_USDC_MINT);
+  const zeroInput = await createZeroUtxo(DEVNET_MOCK_USDC_MINT);
 
   const deposited = await transact(
     {

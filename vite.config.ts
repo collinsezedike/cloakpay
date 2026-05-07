@@ -19,4 +19,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      "/cloak-relay": {
+        target: "https://api.devnet.cloak.ag",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/cloak-relay/, ""),
+      },
+    },
+  },
 });
