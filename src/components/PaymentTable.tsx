@@ -47,8 +47,6 @@ function truncateAddr(addr: string): string {
 }
 
 export function PaymentTable({ rows, results }: Props) {
-  const resultMap = new Map(results?.map((r) => [r.address, r]));
-
   return (
     <div className="overflow-x-auto rounded-xl border border-white/10">
       <table className="w-full text-sm">
@@ -63,7 +61,7 @@ export function PaymentTable({ rows, results }: Props) {
         </thead>
         <tbody className="divide-y divide-white/5">
           {rows.map((row, i) => {
-            const result = resultMap.get(row.address);
+            const result = results?.[i];
             const status: PaymentStatus = result?.status ?? "pending";
 
             return (

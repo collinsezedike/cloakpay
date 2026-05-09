@@ -14,7 +14,7 @@ export default function App() {
   const { publicKey } = useWallet();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [confirming, setConfirming] = useState(false);
-  const { dispatch, results, progress, dispatching, balanceError, reset } = usePayroll();
+  const { dispatch, retryPayment, results, progress, dispatching, balanceError, reset } = usePayroll();
 
   const isComplete = results.length > 0 && !dispatching;
   const hasResults = results.length > 0;
@@ -124,7 +124,7 @@ export default function App() {
                     <svg className="h-4 w-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                     </svg>
-                    <p className="text-xs text-red-400">{balanceError}</p>
+                    <p className="text-xs pt-0.25 text-red-400">{balanceError}</p>
                   </div>
                 )}
 
@@ -143,7 +143,10 @@ export default function App() {
 
             {isComplete && (
               <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                <ViewingKeysPanel results={results} />
+                <ViewingKeysPanel
+                  results={results}
+                  onRetry={(index) => retryPayment(index, rows[index])}
+                />
               </section>
             )}
           </div>

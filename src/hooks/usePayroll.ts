@@ -1,8 +1,7 @@
 import { useState, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { sendPrivateUsdc, assertUsdcBalance } from "@/lib/cloak";
+import { sendPrivateUsdc, assertUsdcBalance, type MerkleTree } from "@/lib/cloak";
 import { totalUsdc } from "@/lib/csv";
-import type { MerkleTree } from "@cloak.dev/sdk";
 import type { PaymentRow, PaymentResult } from "@/types";
 
 interface Progress {
@@ -87,6 +86,44 @@ export function usePayroll() {
     [connection, wallet],
   );
 
+  const retryPayment = useCallback(
+    async (index: number, row: PaymentRow) => {
+      if (!wallet.publicKey) return;
+
+      setResults((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], status: "processing", error: undefined };
+        return next;
+      });
+
+      try {
+        const result = await sendPrivateUsdc(connection, wallet, row.address, row.amount);
+        setResults((prev) => {
+          const next = [...prev];
+          next[index] = {
+            ...next[index],
+            status: "success",
+            txSignature: result.txSignature,
+            viewingKey: result.viewingKey,
+            error: undefined,
+          };
+          return next;
+        });
+      } catch (err) {
+        setResults((prev) => {
+          const next = [...prev];
+          next[index] = {
+            ...next[index],
+            status: "error",
+            error: err instanceof Error ? err.message : "Unknown error",
+          };
+          return next;
+        });
+      }
+    },
+    [connection, wallet],
+  );
+
   const reset = useCallback(() => {
     setResults([]);
     setProgress(null);
@@ -94,5 +131,5 @@ export function usePayroll() {
     setBalanceError(null);
   }, []);
 
-  return { dispatch, results, progress, dispatching, balanceError, reset };
+  return { dispatch, retryPayment, results, progress, dispatching, balanceError, reset };
 }
