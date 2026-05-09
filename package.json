@@ -17,6 +17,8 @@
     "@solana/wallet-adapter-react-ui": "^0.9.35",
     "@solana/wallet-adapter-wallets": "^0.19.32",
     "@solana/web3.js": "^1.98.0",
+    "@switchboard-xyz/common": "^5.8.1",
+    "@switchboard-xyz/on-demand": "^3.10.1",
     "papaparse": "^5.5.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

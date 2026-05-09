@@ -1,19 +1,19 @@
 import {
   CLOAK_PROGRAM_ID,
   DEVNET_MOCK_USDC_MINT,
+  TransactOptions,
   createUtxo,
   createZeroUtxo,
   fullWithdraw,
   generateUtxoKeypair,
   getNkFromUtxoPrivateKey,
   transact,
-  type MerkleTree,
+  type MerkleTree
 } from "@cloak.dev/sdk-devnet";
-import { getAssociatedTokenAddressSync, getAccount, TokenAccountNotFoundError } from "@solana/spl-token";
-import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
+export { type MerkleTree } from "@cloak.dev/sdk-devnet";
+import { getAssociatedTokenAddressSync, getAccount, TokenAccountNotFoundError, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
+import { Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
-
-const RELAY_URL = import.meta.env.VITE_CLOAK_RELAY_URL ?? "/cloak-relay";
 
 const USDC_DECIMALS = 6;
 
@@ -48,7 +48,7 @@ export async function assertUsdcBalance(
   }
 }
 
-export interface SendPrivateResult {
+export interface SendPrivateUsdcResult {
   txSignature: string;
   viewingKey: string;
   merkleTree: MerkleTree | undefined;
@@ -64,30 +64,29 @@ export async function sendPrivateUsdc(
   recipientAddress: string,
   amount: number,
   cachedMerkleTree?: MerkleTree,
-): Promise<SendPrivateResult> {
+): Promise<SendPrivateUsdcResult> {
   if (!wallet.publicKey || !wallet.signTransaction || !wallet.signMessage) {
     throw new Error("Wallet not connected or does not support signMessage");
   }
 
   const rawAmount = usdcToRaw(amount);
   const recipient = new PublicKey(recipientAddress);
-  const ownerKeypair = await generateUtxoKeypair();
-  const depositorAta = getAssociatedTokenAddressSync(DEVNET_MOCK_USDC_MINT, wallet.publicKey);
+  const senderUtxoKp = await generateUtxoKeypair();
+  const senderNk = getNkFromUtxoPrivateKey(senderUtxoKp.privateKey);
 
-  const signTx = wallet.signTransaction as <T extends Transaction | VersionedTransaction>(tx: T) => Promise<T>;
-
-  const baseOptions = {
+  const transactOptions: TransactOptions = {
     connection,
     programId: CLOAK_PROGRAM_ID,
+    chainNoteViewingKeyNk: senderNk,
     depositorPublicKey: wallet.publicKey,
-    signTransaction: signTx,
-    signMessage: wallet.signMessage,
-    relayUrl: RELAY_URL,
+    signTransaction: wallet.signTransaction,
+    relayUrl: "/cloak-relay",
+    riskQuoteUrl: "/risk-quote",
     enforceViewingKeyRegistration: false,
     ...(cachedMerkleTree ? { cachedMerkleTree } : {}),
   };
 
-  const outputUtxo = await createUtxo(rawAmount, ownerKeypair, DEVNET_MOCK_USDC_MINT);
+  const outputUtxo = await createUtxo(rawAmount, senderUtxoKp, DEVNET_MOCK_USDC_MINT);
   const zeroInput = await createZeroUtxo(DEVNET_MOCK_USDC_MINT);
 
   const deposited = await transact(
@@ -95,17 +94,52 @@ export async function sendPrivateUsdc(
       inputUtxos: [zeroInput],
       outputUtxos: [outputUtxo],
       externalAmount: rawAmount,
-      depositor: depositorAta,
+      depositor: wallet.publicKey,
     },
-    baseOptions,
+    transactOptions,
   );
 
+  const recipientAta = getAssociatedTokenAddressSync(DEVNET_MOCK_USDC_MINT, recipient);
+  try {
+    await getAccount(connection, recipientAta);
+  } catch (e) {
+      if (e instanceof TokenAccountNotFoundError) {
+        const instructions = [
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            recipientAta,
+            recipient,
+            DEVNET_MOCK_USDC_MINT
+          )
+        ];
+        const { blockhash } = await connection.getLatestBlockhash();
+        const messageV0 = new TransactionMessage({
+          payerKey: wallet.publicKey,
+          recentBlockhash: blockhash,
+          instructions,
+        }).compileToV0Message();
+        const createAtaTx = new VersionedTransaction(messageV0);
+        const ataSig = await wallet.sendTransaction(createAtaTx, connection);
+
+        // Confirm the tx
+        const latestBlockhash = await connection.getLatestBlockhash();
+        await connection.confirmTransaction(
+          {
+            signature: ataSig,
+            blockhash: latestBlockhash.blockhash,
+            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          },
+          "confirmed",
+        );
+    }
+  }
+
   const withdrawn = await fullWithdraw(deposited.outputUtxos, recipient, {
-    ...baseOptions,
+    ...transactOptions,
     cachedMerkleTree: deposited.merkleTree,
   });
 
-  const viewingKeyBytes = getNkFromUtxoPrivateKey(ownerKeypair.privateKey);
+  const viewingKeyBytes = getNkFromUtxoPrivateKey(senderUtxoKp.privateKey);
   const viewingKey = Buffer.from(viewingKeyBytes).toString("hex");
 
   return { txSignature: withdrawn.signature, viewingKey, merkleTree: withdrawn.merkleTree };
