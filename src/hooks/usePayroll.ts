@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { sendPrivateUsdc, assertUsdcBalance, type MerkleTree } from "@/lib/cloak";
 import { totalUsdc } from "@/lib/csv";
+import { saveBatch } from "@/lib/history";
 import type { PaymentRow, PaymentResult } from "@/types";
 
 interface Progress {
@@ -81,6 +82,7 @@ export function usePayroll() {
         setProgress({ done: i + 1, total: rows.length });
       }
 
+      saveBatch(final);
       setDispatching(false);
     },
     [connection, wallet],

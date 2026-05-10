@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import type { PaymentResult } from "@/types";
+import { buildPayStubUrl } from "@/lib/paystub";
 
 interface Props {
   results: PaymentResult[];
@@ -17,6 +18,7 @@ export function ViewingKeysPanel({ results, onRetry }: Props) {
     .map((r, i) => ({ result: r, index: i }))
     .filter(({ result: r }) => r.status === "error" || r.status === "processing");
   const [copied, setCopied] = useState<string | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState<number | null>(null);
 
   if (successful.length === 0 && failedWithIdx.length === 0) return null;
 
@@ -24,6 +26,12 @@ export function ViewingKeysPanel({ results, onRetry }: Props) {
     await navigator.clipboard.writeText(key);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const sharePayStub = async (r: PaymentResult, i: number) => {
+    await navigator.clipboard.writeText(buildPayStubUrl(r));
+    setCopiedUrl(i);
+    setTimeout(() => setCopiedUrl(null), 2000);
   };
 
   const exportJson = () => {
@@ -113,6 +121,7 @@ export function ViewingKeysPanel({ results, onRetry }: Props) {
                 <th className="px-4 py-3 text-right text-xs font-medium text-white/40 uppercase tracking-wider">USDC</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-white/40 uppercase tracking-wider">Viewing Key</th>
                 <th className="px-4 py-3 w-10" />
+                <th className="px-4 py-3 text-right text-xs font-medium text-white/40 uppercase tracking-wider">Pay Stub</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -145,6 +154,19 @@ export function ViewingKeysPanel({ results, onRetry }: Props) {
                         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => sharePayStub(r, i)}
+                      title="Copy pay stub link"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-white/10 text-xs text-white/40 hover:text-white hover:border-white/20 transition-colors"
+                    >
+                      {copiedUrl === i ? (
+                        <><svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg><span className="text-emerald-400">Copied</span></>
+                      ) : (
+                        <><svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>Share</>
                       )}
                     </button>
                   </td>
