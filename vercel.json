@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/risk-quote", "destination": "/api/risk-quote" },
+    { "source": "/cloak-relay/health", "destination": "/api/cloak-health" },
+    { "source": "/cloak-relay/:path*", "destination": "https://api.devnet.cloak.ag/:path*" }
+  ]
+}
