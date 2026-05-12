@@ -124,5 +124,3 @@ The devnet relay occasionally drops TCP connections. A Vite middleware layer pro
 | Styling  | Tailwind CSS v4                                       |
 
 ---
-
-Built for the [Superteam Frontier](https://superteam.fun) hackathon · Cloak Protocol track
