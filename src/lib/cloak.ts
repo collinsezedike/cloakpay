@@ -17,11 +17,11 @@ import type { WalletContextState } from "@solana/wallet-adapter-react";
 
 const USDC_DECIMALS = 6;
 
-export function usdcToRaw(amount: number): bigint {
+function usdcToRaw(amount: number): bigint {
   return BigInt(Math.round(amount * 10 ** USDC_DECIMALS));
 }
 
-export function rawToUsdc(raw: bigint): number {
+function rawToUsdc(raw: bigint): number {
   return Number(raw) / 10 ** USDC_DECIMALS;
 }
 
@@ -65,8 +65,8 @@ export async function sendPrivateUsdc(
   amount: number,
   cachedMerkleTree?: MerkleTree,
 ): Promise<SendPrivateUsdcResult> {
-  if (!wallet.publicKey || !wallet.signTransaction || !wallet.signMessage) {
-    throw new Error("Wallet not connected or does not support signMessage");
+  if (!wallet.publicKey || !wallet.signTransaction) {
+    throw new Error("Wallet not connected");
   }
 
   const rawAmount = usdcToRaw(amount);
@@ -103,34 +103,32 @@ export async function sendPrivateUsdc(
   try {
     await getAccount(connection, recipientAta);
   } catch (e) {
-      if (e instanceof TokenAccountNotFoundError) {
-        const instructions = [
-          createAssociatedTokenAccountIdempotentInstruction(
-            wallet.publicKey,
-            recipientAta,
-            recipient,
-            DEVNET_MOCK_USDC_MINT
-          )
-        ];
-        const { blockhash } = await connection.getLatestBlockhash();
-        const messageV0 = new TransactionMessage({
-          payerKey: wallet.publicKey,
-          recentBlockhash: blockhash,
-          instructions,
-        }).compileToV0Message();
-        const createAtaTx = new VersionedTransaction(messageV0);
-        const ataSig = await wallet.sendTransaction(createAtaTx, connection);
-
-        // Confirm the tx
-        const latestBlockhash = await connection.getLatestBlockhash();
-        await connection.confirmTransaction(
-          {
-            signature: ataSig,
-            blockhash: latestBlockhash.blockhash,
-            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-          },
-          "confirmed",
-        );
+    if (e instanceof TokenAccountNotFoundError) {
+      const instructions = [
+        createAssociatedTokenAccountIdempotentInstruction(
+          wallet.publicKey,
+          recipientAta,
+          recipient,
+          DEVNET_MOCK_USDC_MINT,
+        ),
+      ];
+      const { blockhash } = await connection.getLatestBlockhash();
+      const messageV0 = new TransactionMessage({
+        payerKey: wallet.publicKey,
+        recentBlockhash: blockhash,
+        instructions,
+      }).compileToV0Message();
+      const createAtaTx = new VersionedTransaction(messageV0);
+      const ataSig = await wallet.sendTransaction(createAtaTx, connection);
+      const latestBlockhash = await connection.getLatestBlockhash();
+      await connection.confirmTransaction(
+        {
+          signature: ataSig,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        },
+        "confirmed",
+      );
     }
   }
 

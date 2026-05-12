@@ -15,7 +15,7 @@ export function ConfirmModal({ open, count, total, onConfirm, onCancel }: Props)
       <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#16161f] p-6 space-y-5 shadow-2xl">
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-white">Confirm payroll dispatch</h2>
-          <p className="text-xs text-white/40">This will send real USDC on mainnet. Review carefully.</p>
+          <p className="text-xs text-white/40">This action cannot be undone. Each payment will be submitted to the blockchain.</p>
         </div>
 
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] divide-y divide-white/[0.06]">

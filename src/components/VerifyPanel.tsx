@@ -114,7 +114,7 @@ export function VerifyPanel({ initialParams }: Props) {
           <textarea
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
-            placeholder="https://cloakpay.app/?verify=1&tx=…"
+            placeholder="https://usecloakpay.vercel.app/?verify=1&tx=…"
             rows={3}
             className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-mono text-white/70 placeholder:text-white/20 focus:outline-none focus:border-indigo-500/40 resize-none"
           />

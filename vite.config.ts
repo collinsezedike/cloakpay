@@ -16,10 +16,8 @@ const mockCloakHealth = () => ({
 });
 
 // Proxies /risk-quote → the Cloak relay's /range-quote, stripping the token
-// param so the relay doesn't reject mock USDC. The relay returns a compact
-// { signature, message, signer_pubkey } Ed25519 instruction (~145 bytes) that
-// fits alongside the Cloak ZK proof in a single transaction, whereas the
-// Switchboard oracle instruction (207 bytes) overflows the 1232-byte limit.
+// param (relay rejects the mock USDC mint) and forwarding wallet + recipient
+// for the Ed25519 sanctions-check instruction.
 const riskQuoteMiddleware = () => ({
   name: "risk-quote-middleware",
   configureServer(server: ViteDevServer) {
@@ -35,9 +33,16 @@ const riskQuoteMiddleware = () => ({
           return;
         }
 
-        // Call the relay server-side (bypasses browser CORS) with only the
-        // wallet param — omitting token avoids the mock USDC 500 error.
-        // Retry up to 3 times; the devnet relay occasionally drops TCP connections.
+        // Forward recipient param if the SDK provides it (used for recipient-side sanctions check).
+        // Omit token — the relay rejects the mock USDC mint address with a 500.
+        const recipient = params.get("recipient");
+        const relayQs = new URLSearchParams({ wallet });
+        if (recipient) relayQs.set("recipient", recipient);
+
+        // Call the relay server-side to bypass browser CORS.
+        // Retry up to 3 times for transient drops, but break immediately on
+        // ETIMEDOUT / UND_ERR_CONNECT_TIMEOUT — the server is unreachable and
+        // retrying only wastes time, expiring the transaction blockhash.
         let lastErr: unknown;
         let relayRes: Response | undefined;
         for (let attempt = 1; attempt <= 3; attempt++) {
@@ -45,22 +50,36 @@ const riskQuoteMiddleware = () => ({
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 20_000);
             relayRes = await fetch(
-              `https://api.devnet.cloak.ag/range-quote?wallet=${wallet}`,
+              `https://api.devnet.cloak.ag/range-quote?${relayQs}`,
               { signal: controller.signal },
             );
             clearTimeout(timer);
             break;
           } catch (err) {
             lastErr = err;
-            console.warn(`[risk-quote] attempt ${attempt} failed:`, (err as Error).message);
+            const cause = (err as any)?.cause;
+            const code: string = cause?.code ?? (err as any)?.code ?? "";
+            const isDown = code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "ECONNREFUSED";
+            console.warn(`[risk-quote] attempt ${attempt} failed:`, (err as Error).message, code || "");
+            if (isDown) {
+              console.warn("[risk-quote] relay unreachable, aborting retries");
+              break;
+            }
             if (attempt < 3) await new Promise((r) => setTimeout(r, 1_500 * attempt));
           }
         }
 
         if (!relayRes) {
-          console.error("[risk-quote] all retries exhausted:", lastErr);
+          console.error("[risk-quote] failed:", lastErr);
+          const cause = (lastErr as any)?.cause;
+          const code: string = cause?.code ?? (lastErr as any)?.code ?? "";
+          const isDown = code === "ETIMEDOUT" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "ECONNREFUSED";
           res.writeHead(502, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: `Relay unreachable after 3 attempts: ${(lastErr as Error).message}` }));
+          res.end(JSON.stringify({
+            error: isDown
+              ? "Cloak devnet relay is currently unreachable. Please try again in a few minutes."
+              : `Relay unreachable: ${(lastErr as Error).message}`,
+          }));
           return;
         }
 

@@ -70,6 +70,5 @@ export function generateSampleCsv(): string {
     "32a2kKSydtMVzkE92BnNMAh5RTfk2i8owDNt32tqkBSE,100.00",
     "32a2kKSydtMVzkE92BnNMAh5RTfk2i8owDNt32tqkBSE,250.50",
     "32a2kKSydtMVzkE92BnNMAh5RTfk2i8owDNt32tqkBSE,75.00",
-    // "3NKdgjCbVa4fdFaz8S42kP1UELwT1vyZaH3827iJRCtc,75.00",
   ].join("\n");
 }
