@@ -53,7 +53,7 @@ CloakPay exports all keys as JSON or CSV in one click — ready to attach to an 
 
 > Running on Solana devnet with mock USDC. No real funds required.
 
-**Live:** _coming soon_ <!-- replace with Vercel URL -->
+**Live:** [usecloakpay.vercel.app](https://usecloakpay.vercel.app)
 
 **Try it locally:**
 
