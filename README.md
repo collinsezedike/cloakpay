@@ -55,6 +55,12 @@ CloakPay exports all keys as JSON or CSV in one click — ready to attach to an 
 
 **Live:** [usecloakpay.vercel.app](https://usecloakpay.vercel.app)
 
+**Demo video:**
+
+<a href="https://youtu.be/NzdKVPNgxoI?si=E36UgPmfcQbDYPIo">
+  <img src="https://img.youtube.com/vi/NzdKVPNgxoI/hqdefault.jpg" width="100%" alt="CloakPay demo" />
+</a>
+
 **Try it locally:**
 
 ```bash
